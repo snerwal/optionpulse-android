@@ -7,6 +7,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -46,20 +49,23 @@ class MainActivity : ComponentActivity() {
 
 @Composable fun OptionPulseApp(vm: ScannerViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
     val state by vm.ui.collectAsStateWithLifecycle()
+    var settings by remember { mutableStateOf(false) }
     MaterialTheme(colorScheme = darkColorScheme(primary = Green, background = Navy, surface = Panel)) {
         Surface(Modifier.fillMaxSize()) {
-            if (state.selected != null) SignalDetail(state.selected!!, { vm.select(null) })
-            else Dashboard(state, vm::refresh, vm::select, vm::toggleCalls)
+            if (settings) SettingsScreen { settings = false }
+            else if (state.selected != null) SignalDetail(state.selected!!, { vm.select(null) })
+            else Dashboard(state, vm::refresh, vm::select, vm::toggleCalls) { settings = true }
         }
     }
 }
 
-@Composable private fun Dashboard(state: ScannerUiState, refresh: () -> Unit, select: (Signal) -> Unit, toggle: () -> Unit) {
+@Composable private fun Dashboard(state: ScannerUiState, refresh: () -> Unit, select: (Signal) -> Unit, toggle: () -> Unit, openSettings: () -> Unit) {
     Column(Modifier.fillMaxSize().background(Navy).statusBarsPadding().padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Bolt, null, tint = Green)
             Column(Modifier.weight(1f).padding(start = 8.dp)) { Text("OPTIONPULSE", fontWeight = FontWeight.Black); Text("NSE F&O momentum scanner", color = Muted, style = MaterialTheme.typography.labelSmall) }
+            IconButton(onClick = openSettings) { Icon(Icons.Default.Settings, "Setup") }
             IconButton(onClick = refresh) { Icon(Icons.Default.Refresh, "Refresh") }
         }
         Spacer(Modifier.height(14.dp))
@@ -125,3 +131,25 @@ class MainActivity : ComponentActivity() {
 @Composable private fun Section(title: String, body: @Composable ColumnScope.() -> Unit) { Card(colors=CardDefaults.cardColors(containerColor=Panel), shape=RoundedCornerShape(18.dp)) { Column(Modifier.padding(16.dp)) { Text(title, fontWeight=FontWeight.Bold); Spacer(Modifier.height(8.dp)); body() } } }
 @Composable private fun MetricRow(label: String, value: String) { Row(Modifier.fillMaxWidth().padding(vertical=5.dp)) { Text(label, color=Muted, modifier=Modifier.weight(1f)); Text(value, fontWeight=FontWeight.SemiBold) } }
 private fun money(value: Double) = "₹%,.2f".format(value)
+
+@Composable private fun SettingsScreen(back: () -> Unit) {
+    val context = LocalContext.current
+    val store = remember { CredentialStore(context) }
+    var upstox by remember { mutableStateOf(store.upstoxToken) }
+    var telegram by remember { mutableStateOf(store.telegramToken) }
+    var chatId by remember { mutableStateOf(store.telegramChatId) }
+    var saved by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize().background(Navy).statusBarsPadding().padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = back) { Icon(Icons.Default.ArrowBack, "Back") }; Text("Phone scanner setup", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) }
+        Text("Credentials are encrypted with Android Keystore and remain on this phone.", color = Muted)
+        OutlinedTextField(upstox, { upstox = it; saved = false }, Modifier.fillMaxWidth(), label = { Text("Upstox access token") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+        Text("Upstox tokens expire at 3:30 AM the following day and must be replaced daily.", color = Color(0xFFFFC857), style = MaterialTheme.typography.bodySmall)
+        OutlinedTextField(telegram, { telegram = it; saved = false }, Modifier.fillMaxWidth(), label = { Text("Telegram bot token") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+        OutlinedTextField(chatId, { chatId = it; saved = false }, Modifier.fillMaxWidth(), label = { Text("Telegram chat ID") }, singleLine = true)
+        Button(onClick = { store.upstoxToken = upstox; store.telegramToken = telegram; store.telegramChatId = chatId; saved = true }, enabled = upstox.isNotBlank() && telegram.isNotBlank() && chatId.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("Save securely") }
+        Button(onClick = { context.startForegroundService(Intent(context, PhoneScannerService::class.java)) }, enabled = saved || store.configured(), modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.PlayArrow, null); Text("  Start foreground scanner") }
+        OutlinedButton(onClick = { context.startService(Intent(context, PhoneScannerService::class.java).setAction(PhoneScannerService.ACTION_STOP)) }, modifier = Modifier.fillMaxWidth()) { Text("Stop scanner") }
+        if (saved) Text("Saved. The persistent notification confirms that Android is keeping the service active.", color = Green)
+        Text("Do not enter your Upstox API secret here. This build remains alert-only and does not place orders.", color = Muted, style = MaterialTheme.typography.bodySmall)
+    }
+}
