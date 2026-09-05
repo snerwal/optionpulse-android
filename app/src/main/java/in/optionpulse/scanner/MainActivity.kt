@@ -1,4 +1,4 @@
-package in.optionpulse.scanner
+package com.optionpulse.scanner
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

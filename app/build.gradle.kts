@@ -5,10 +5,10 @@ plugins {
 }
 
 android {
-    namespace = "in.optionpulse.scanner"
+    namespace = "com.optionpulse.scanner"
     compileSdk = 35
     defaultConfig {
-        applicationId = "in.optionpulse.scanner"
+        applicationId = "com.optionpulse.scanner"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

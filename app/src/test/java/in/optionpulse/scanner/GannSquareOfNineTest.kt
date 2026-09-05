@@ -1,4 +1,4 @@
-package in.optionpulse.scanner
+package com.optionpulse.scanner
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows

@@ -1,4 +1,4 @@
-package in.optionpulse.scanner
+package com.optionpulse.scanner
 
 import kotlin.math.abs
 import kotlin.math.max

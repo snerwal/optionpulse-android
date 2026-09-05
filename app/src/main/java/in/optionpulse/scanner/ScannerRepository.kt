@@ -1,4 +1,4 @@
-package in.optionpulse.scanner
+package com.optionpulse.scanner
 
 interface ScannerRepository {
     suspend fun marketStatus(): MarketStatus
