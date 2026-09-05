@@ -163,7 +163,7 @@ ALERT ONLY — verify live price and use a limit order."""
   val suffix=if(c.direction==Direction.CALL)"CE" else "PE"
   val found=options.filter{it.underlying==c.instrument.key&&it.expiry>=today&&it.symbol.endsWith(suffix)}
   val expiry=found.minOfOrNull{it.expiry}?:return null
-  val step=StrikeEngine.stepFor(c.bar.close);val atm=kotlin.math.round(c.bar.close/step)*step
+  val step=StrikeEngine.step(c.bar.close);val atm=kotlin.math.round(c.bar.close/step)*step
   return found.filter{it.expiry==expiry}.minByOrNull{abs(it.strike-atm)}
  }
  private fun localAlert(symbol:String,side:String,contract:String){
