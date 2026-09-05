@@ -12,7 +12,7 @@ import java.time.ZoneId
 import java.util.zip.GZIPInputStream
 import kotlin.math.abs
 
-data class Instrument(val key:String,val symbol:String,val type:String,val strike:Double=0.0,val expiry:String="",val underlying:String="")
+data class Instrument(val key:String,val symbol:String,val type:String,val strike:Double=0.0,val expiry:Long=0,val underlying:String="")
 data class Tick(val price:Double,val volume:Long,val bid:Double=0.0,val ask:Double=0.0,val oi:Long=0)
 data class Bar(val start:Long,var open:Double,var high:Double,var low:Double,var close:Double,var volume:Long)
 data class Candidate(val instrument:Instrument,val direction:Direction,val bar:Bar,val pivot:Double,val plan:GannTradePlan,val score:Int,val ratio:Double)
@@ -31,7 +31,7 @@ class LivePhoneScanner(private val context:Context, private val onStatus:(String
   require(store.configured()){"Credentials are incomplete"}
   onStatus("Downloading current NSE instrument master")
   val all=downloadMaster()
-  options=all.filter{it.type=="OPTSTK"&&it.underlying.isNotBlank()}
+  options=all.filter{(it.type=="CE"||it.type=="PE")&&it.underlying.isNotBlank()}
   val keys=options.map{it.underlying}.toSet()
   equities=all.filter{it.type=="EQ"&&it.key in keys}.distinctBy{it.key}.take(210)
   require(equities.isNotEmpty()){"No NSE F&O equities found"}
@@ -56,7 +56,7 @@ class LivePhoneScanner(private val context:Context, private val onStatus:(String
    val out=ArrayList<Instrument>()
    reader.beginArray()
    while(reader.hasNext()){
-    var key="";var symbol="";var type="";var segment="";var strike=0.0;var expiry="";var underlying=""
+    var key="";var symbol="";var type="";var segment="";var strike=0.0;var expiry=0L;var underlying=""
     reader.beginObject()
     while(reader.hasNext())when(reader.nextName()){
      "instrument_key"->key=reader.nextString()
@@ -64,7 +64,7 @@ class LivePhoneScanner(private val context:Context, private val onStatus:(String
      "instrument_type"->type=reader.nextString()
      "segment"->segment=reader.nextString()
      "strike_price"->strike=readDouble(reader)
-     "expiry"->expiry=readString(reader)
+     "expiry"->expiry=readLong(reader)
      "underlying_key"->underlying=readString(reader)
      else->reader.skipValue()
     }
@@ -75,7 +75,7 @@ class LivePhoneScanner(private val context:Context, private val onStatus:(String
   }
  }
  private fun readString(r:JsonReader)=runCatching{r.nextString()}.getOrElse{r.skipValue();""}
- private fun readDouble(r:JsonReader)=runCatching{r.nextDouble()}.getOrElse{r.skipValue();0.0}
+ private fun readDouble(r:JsonReader)=runCatching{r.nextDouble()}.getOrElse{r.skipValue();0.0}\n private fun readLong(r:JsonReader)=runCatching{r.nextLong()}.getOrElse{r.skipValue();0L}
 
  private fun quotes(keys:List<String>):Map<String,Tick>{
   val encoded=java.net.URLEncoder.encode(keys.joinToString(","),"UTF-8")
@@ -159,9 +159,9 @@ ALERT ONLY — verify live price and use a limit order."""
  }
 
  private fun choose(c:Candidate):Instrument?{
-  val today=java.time.LocalDate.now(ZoneId.of("Asia/Kolkata")).toString()
+  val today=System.currentTimeMillis()
   val suffix=if(c.direction==Direction.CALL)"CE" else "PE"
-  val found=options.filter{it.underlying==c.instrument.key&&it.expiry>=today&&it.symbol.endsWith(suffix)}
+  val found=options.filter{it.underlying==c.instrument.key&&it.expiry>=today&&it.type==suffix}
   val expiry=found.minOfOrNull{it.expiry}?:return null
   val step=StrikeEngine.step(c.bar.close);val atm=kotlin.math.round(c.bar.close/step)*step
   return found.filter{it.expiry==expiry}.minByOrNull{abs(it.strike-atm)}
