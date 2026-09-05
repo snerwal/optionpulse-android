@@ -43,6 +43,19 @@ jobs:
             exit 1
           fi
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Test scanner backend
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pytest -q
+
       - name: Run unit tests
         run: gradle --no-daemon testDebugUnitTest
 

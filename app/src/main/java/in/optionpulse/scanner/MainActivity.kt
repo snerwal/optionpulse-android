@@ -1,8 +1,12 @@
 package com.optionpulse.scanner
 
 import android.os.Bundle
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.firebase.messaging.FirebaseMessaging
 
 private val Navy = Color(0xFF07111F)
 private val Panel = Color(0xFF101E2F)
@@ -26,7 +31,17 @@ private val Red = Color(0xFFFF6376)
 private val Muted = Color(0xFF8DA2B8)
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); setContent { OptionPulseApp() } }
+    private val notificationPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        if (android.os.Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        runCatching {
+            FirebaseMessaging.getInstance().token.addOnSuccessListener { DeviceRegistrar.register(it) }
+        }
+        setContent { OptionPulseApp() }
+    }
 }
 
 @Composable fun OptionPulseApp(vm: ScannerViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
@@ -40,7 +55,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable private fun Dashboard(state: ScannerUiState, refresh: () -> Unit, select: (Signal) -> Unit, toggle: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(Navy).padding(horizontal = 16.dp)) {
+    Column(Modifier.fillMaxSize().background(Navy).statusBarsPadding().padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Default.Bolt, null, tint = Green)
@@ -49,6 +64,7 @@ class MainActivity : ComponentActivity() {
         }
         Spacer(Modifier.height(14.dp))
         StatusCard(state.status)
+        state.error?.let { Text("Backend unavailable: $it", color = Red, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
         Spacer(Modifier.height(14.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Live setups", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -96,7 +112,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable private fun SignalDetail(s: Signal, back: () -> Unit) {
     val accent = if (s.direction == Direction.CALL) Green else Red
-    LazyColumn(Modifier.fillMaxSize().background(Navy), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(Modifier.fillMaxSize().background(Navy).statusBarsPadding(), contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Row(verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = back) { Icon(Icons.Default.ArrowBack, "Back") }; Column { Text(s.symbol, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black); Text(s.setup, color = accent) } } }
         item { Card(colors = CardDefaults.cardColors(containerColor = accent.copy(alpha=.12f))) { Column(Modifier.padding(18.dp)) { Text("RECOMMENDED CONTRACT", color = accent, style = MaterialTheme.typography.labelMedium); Text(s.contract, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold); Text("Ask / premium ₹${s.premium}  •  Spread ${s.spreadPct}%", color = Muted) } } }
         item { Section("Gann Square of 9") { MetricRow("Reference pivot", money(s.pivotPrice)); MetricRow("45° protective level", money(s.gann45)); MetricRow("90° trigger", money(s.gann90)); MetricRow("180° target 1", money(s.gann180)); MetricRow("360° target 2", money(s.gann360)); MetricRow("Spot stop", money(s.spotStop)) } }

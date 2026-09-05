@@ -1,0 +1,25 @@
+services:
+  api:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    depends_on: [redis]
+    volumes:
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: ["redis-data:/data"]
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    env_file: .env
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on: [api]
+volumes:
+  redis-data:
+  caddy-data:

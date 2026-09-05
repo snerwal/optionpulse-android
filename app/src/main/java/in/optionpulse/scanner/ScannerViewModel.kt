@@ -12,16 +12,19 @@ data class ScannerUiState(
     val status: MarketStatus = MarketStatus(),
     val signals: List<Signal> = emptyList(),
     val selected: Signal? = null,
-    val callsOnly: Boolean = false
+    val callsOnly: Boolean = false,
+    val error: String? = null
 )
 
-class ScannerViewModel(private val repository: ScannerRepository = DemoScannerRepository()) : ViewModel() {
+class ScannerViewModel(private val repository: ScannerRepository = LiveScannerRepository()) : ViewModel() {
     private val _ui = MutableStateFlow(ScannerUiState())
     val ui: StateFlow<ScannerUiState> = _ui.asStateFlow()
     init { refresh() }
     fun refresh() = viewModelScope.launch {
-        _ui.value = _ui.value.copy(loading = true)
-        _ui.value = _ui.value.copy(loading = false, status = repository.marketStatus(), signals = repository.signals())
+        _ui.value = _ui.value.copy(loading = true, error = null)
+        runCatching { repository.marketStatus() to repository.signals() }
+            .onSuccess { (status, signals) -> _ui.value = _ui.value.copy(loading = false, status = status, signals = signals) }
+            .onFailure { error -> _ui.value = _ui.value.copy(loading = false, status = MarketStatus(connected = false, scanned = 0), signals = emptyList(), error = error.message ?: "Backend unavailable") }
     }
     fun select(signal: Signal?) { _ui.value = _ui.value.copy(selected = signal) }
     fun toggleCalls() { _ui.value = _ui.value.copy(callsOnly = !_ui.value.callsOnly) }
