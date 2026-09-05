@@ -1,8 +1,46 @@
 package com.optionpulse.scanner
 
+import com.optionpulse.scanner.BuildConfig
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.GET
+import retrofit2.http.Body
+import retrofit2.http.POST
+
 interface ScannerRepository {
     suspend fun marketStatus(): MarketStatus
     suspend fun signals(): List<Signal>
+}
+
+interface ScannerApi {
+    @GET("v1/status") suspend fun status(): MarketStatus
+    @GET("v1/signals") suspend fun signals(): List<Signal>
+    @POST("v1/devices/register") suspend fun registerDevice(@Body request: DeviceToken)
+}
+
+data class DeviceToken(val token: String)
+
+class LiveScannerRepository(private val api: ScannerApi = ApiFactory.api) : ScannerRepository {
+    override suspend fun marketStatus() = api.status()
+    override suspend fun signals() = api.signals()
+}
+
+internal object ApiFactory {
+    private val client = OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            val builder = chain.request().newBuilder()
+            if (BuildConfig.DEVICE_ENROLLMENT_TOKEN.isNotBlank()) builder.header("Authorization", "Bearer ${BuildConfig.DEVICE_ENROLLMENT_TOKEN}")
+            chain.proceed(builder.build())
+        }
+        .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BASIC })
+        .build()
+    val api: ScannerApi = Retrofit.Builder()
+        .baseUrl(BuildConfig.API_BASE_URL)
+        .client(client)
+        .addConverterFactory(GsonConverterFactory.create())
+        .build().create(ScannerApi::class.java)
 }
 
 class DemoScannerRepository : ScannerRepository {

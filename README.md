@@ -59,3 +59,19 @@ Authenticate mobile requests with short-lived user access tokens. Keep Upstox AP
 - Pushover emergency priority may repeat alerts but cannot universally bypass Android Do Not Disturb settings.
 
 This project does not place orders. Naked options can lose 100% of premium; paper-test, account for slippage/fees, and validate out-of-sample before using real capital.
+
+## Background alerts deployment
+
+The Android client now uses the live HTTPS API and includes an FCM messaging service, a high-priority notification channel, Android 13+ permission handling, offline/error state, and system-bar inset handling. Scanning remains on the VPS, so alerts can arrive while the app is minimized or closed.
+
+The `backend/` FastAPI service supplies status/signals, registers FCM devices, enforces score/cooldown/daily caps in Redis, and dispatches Telegram plus FCM concurrently. `docker-compose.yml` runs the API and persistent Redis on Ubuntu.
+
+Before production use:
+
+1. Add your Firebase Android app's `google-services.json` to `app/` locally or inject it from an encrypted GitHub Actions secret. It is intentionally ignored by Git. Supply the registration-only token as Gradle property `OPTIONPULSE_DEVICE_TOKEN`; it is separate from the internal signal-ingestion token.
+2. Put the Firebase service-account JSON only on the VPS and set `FIREBASE_CREDENTIALS_PATH`.
+3. Copy `.env.example` to `.env`, generate a long random `INTERNAL_API_TOKEN`, and add Upstox/Telegram values. Never commit `.env`.
+4. Put an HTTPS reverse proxy in front of port 8080 and change `API_BASE_URL` to that domain.
+5. Connect the Upstox WebSocket/candle worker to authenticated `POST /internal/signals`. The API refuses unauthenticated ingestion.
+
+The repository deliberately does not automate live orders. Alerts are advisory and manual-execution only.
