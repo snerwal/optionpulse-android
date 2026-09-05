@@ -1,4 +1,4 @@
-package in.optionpulse.scanner
+package com.optionpulse.scanner
 
 interface ScannerRepository {
     suspend fun marketStatus(): MarketStatus
@@ -9,7 +9,7 @@ class DemoScannerRepository : ScannerRepository {
     override suspend fun marketStatus() = MarketStatus()
     override suspend fun signals() = listOf(
         Signal("1", "VOLTAS", Direction.CALL, "BULLISH BREAKOUT", 1440.50, 85,
-            "VOLTAS SEP 1440 CE", 38.50, 0.5, 184_500, 96_240, 1400.0, 1418.77, 1437.67, 1475.83, 1553.67,
+            "VOLTAS SEP 1450 CE", 38.50, 0.5, 184_500, 96_240, 1400.0, 1418.77, 1437.67, 1475.83, 1553.67,
             1418.70, 30.0, 16.2, "10:15:02 IST",
             listOf(Check("Gann 90° close", true, "Closed above ₹1,437.67"), Check("Volume surge", true, "3.1× SMA20"),
                 Check("Anchored VWAP", true, "Spot above VWAP"), Check("Pattern", true, "Bullish Marubozu"),

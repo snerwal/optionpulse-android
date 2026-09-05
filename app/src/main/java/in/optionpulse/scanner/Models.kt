@@ -1,4 +1,4 @@
-package in.optionpulse.scanner
+package com.optionpulse.scanner
 
 enum class Direction { CALL, PUT }
 

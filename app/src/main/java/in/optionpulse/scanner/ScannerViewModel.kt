@@ -1,4 +1,4 @@
-package in.optionpulse.scanner
+package com.optionpulse.scanner
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
