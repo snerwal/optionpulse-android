@@ -1,0 +1,67 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Reject committed credentials
+        shell: bash
+        run: |
+          if git grep -nEI '(UPSTOX|TELEGRAM|PUSHOVER)_(API_KEY|API_SECRET|ACCESS_TOKEN|BOT_TOKEN|USER_KEY)[[:space:]]*=[[:space:]]*[^$[:space:]]+' -- ':!README.md'; then
+            echo "Potential credential found in tracked source."
+            exit 1
+          fi
+
+      - name: Run unit tests
+        run: gradle --no-daemon testDebugUnitTest
+
+      - name: Build debug APK
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: OptionPulse-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OptionPulse-test-reports
+          path: app/build/reports/tests/
+          if-no-files-found: ignore
+          retention-days: 7
