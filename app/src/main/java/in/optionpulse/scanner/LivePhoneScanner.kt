@@ -75,7 +75,8 @@ class LivePhoneScanner(private val context:Context, private val onStatus:(String
   }
  }
  private fun readString(r:JsonReader)=runCatching{r.nextString()}.getOrElse{r.skipValue();""}
- private fun readDouble(r:JsonReader)=runCatching{r.nextDouble()}.getOrElse{r.skipValue();0.0}\n private fun readLong(r:JsonReader)=runCatching{r.nextLong()}.getOrElse{r.skipValue();0L}
+ private fun readDouble(r:JsonReader)=runCatching{r.nextDouble()}.getOrElse{r.skipValue();0.0}
+ private fun readLong(r:JsonReader)=runCatching{r.nextLong()}.getOrElse{r.skipValue();0L}
 
  private fun quotes(keys:List<String>):Map<String,Tick>{
   val encoded=java.net.URLEncoder.encode(keys.joinToString(","),"UTF-8")
